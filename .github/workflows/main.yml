@@ -1,4 +1,4 @@
-name: Convert DOCX to PDF and Commit
+name: Convert DOCX to PDF on Push
 
 on:
   push:
@@ -11,61 +11,47 @@ on:
 jobs:
   convert:
     runs-on: ubuntu-latest
+
     steps:
-      # Checkout the repository
-      - name: Checkout the repository
+      # Step 1: Checkout the repository
+      - name: Checkout code
         uses: actions/checkout@v3
 
-      # Cache pandoc and texlive dependencies
-      - name: Cache pandoc and texlive dependencies
+      # Step 2: Set up cache to avoid reinstalling LibreOffice and dependencies
+      - name: Cache LibreOffice and dependencies
         uses: actions/cache@v3
         with:
           path: |
-            /root/.cache/pandoc
-            /usr/share/texlive
-            /var/lib/texmf
-          key: ${{ runner.os }}-texlive-${{ hashFiles('**/*.docx') }}
-          restore-keys: |
-            ${{ runner.os }}-texlive-
+            ~/.cache/libreoffice
+            /tmp/apt/*  # Optional, cache apt packages
+          key: ${{ runner.os }}-libreoffice-${{ hashFiles('**/*.docx') }}
 
-      # Set up pandoc and LaTeX if not cached
-      - name: Set up pandoc and LaTeX
+      # Step 3: Install LibreOffice
+      - name: Install LibreOffice
         run: |
-          # Install pandoc and texlive-full if not already installed
-          if ! dpkg-query -l | grep -q pandoc; then
-            sudo apt-get update
-            sudo apt-get install -y pandoc texlive-full
-          fi
+          sudo apt-get update
+          sudo apt-get install -y libreoffice
 
-      # Convert DOCX to PDF with xelatex
+      # Step 4: Create PDF folder if it doesn't exist
+      - name: Create PDFs folder
+        run: mkdir -p pdfs
+
+      # Step 5: Convert DOCX files to PDF
       - name: Convert DOCX to PDF
         run: |
-          mkdir -p pdfs
-          # Use find with null-terminated strings to handle spaces and special characters
-          find . -name "*.docx" -print0 | while IFS= read -r -d '' docx_file; do
-            # Define output PDF filename (same name as DOCX)
-            output_pdf="${docx_file%.docx}.pdf"
-            # Convert DOCX to PDF using pandoc with xelatex
-            pandoc "$docx_file" -o "$output_pdf" --pdf-engine=xelatex
+          for file in $(find . -name "*.docx"); do
+            # Handle spaces and special characters in filenames
+            safe_filename=$(echo "$file" | sed 's/ /\\ /g')
+            output_pdf="pdfs/$(basename "${file%.*}.pdf")"
+            # Convert the DOCX to PDF using LibreOffice
+            libreoffice --headless --convert-to pdf "$safe_filename" --outdir pdfs
           done
 
-      # Configure Git user
-      - name: Configure git user
+      # Step 6: Commit the PDFs back to the repository
+      - name: Commit and push PDF files
         run: |
           git config --global user.name "github-actions"
-          git config --global user.email "github-actions@github.com"
-
-      # Commit PDF files to the repository
-      - name: Commit PDF files
-        run: |
-          # Stage all the PDFs
-          git add '*.pdf'
-          # Check if there are any changes (new PDFs)
-          if git diff --cached --quiet; then
-            echo "No changes to commit."
-          else
-            # Commit changes (new PDFs)
-            git commit -m "Add/Update PDF files from DOCX conversion"
-            # Push changes back to the repository
-            git push
-          fi
+          git config --global user.email "github-actions@users.noreply.github.com"
+          git add pdfs/*.pdf
+          git commit -m "Add/Update PDFs from DOCX files"
+          git push
