@@ -1,0 +1,36 @@
+name: Convert DOCX to PDF
+
+on:
+  push:
+    paths:
+      - '**/*.docx'
+  pull_request:
+    paths:
+      - '**/*.docx'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v3
+
+      - name: Set up pandoc and LaTeX
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pandoc texlive-xetex texlive-fonts-recommended texlive-generic-recommended
+
+      - name: Convert DOCX to PDF
+        run: |
+          mkdir -p pdfs
+          for docx_file in $(find . -name "*.docx"); do
+            output_pdf="pdfs/$(basename "${docx_file%.docx}.pdf")"
+            pandoc "$docx_file" -o "$output_pdf"
+          done
+
+      - name: Upload PDFs as artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: converted-pdfs
+          path: pdfs/
