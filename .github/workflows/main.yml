@@ -16,11 +16,24 @@ jobs:
       - name: Checkout the repository
         uses: actions/checkout@v3
 
-      # Set up pandoc and LaTeX
+      # Cache pandoc and texlive dependencies
+      - name: Cache pandoc and texlive dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            /root/.cache/pandoc
+            /usr/share/texlive
+            /var/lib/texmf
+          key: ${{ runner.os }}-texlive-${{ hashFiles('**/*.docx') }}
+
+      # Set up pandoc and LaTeX if not cached
       - name: Set up pandoc and LaTeX
         run: |
-          sudo apt-get update
-          sudo apt-get install -y pandoc texlive
+          # Install pandoc and texlive-full if not already installed
+          if ! dpkg-query -l | grep -q pandoc; then
+            sudo apt-get update
+            sudo apt-get install -y pandoc texlive-full
+          fi
 
       # Convert DOCX to PDF
       - name: Convert DOCX to PDF
