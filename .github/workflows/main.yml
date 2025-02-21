@@ -1,4 +1,4 @@
-name: Convert DOCX to PDF
+name: Convert DOCX to PDF and Commit
 
 on:
   push:
@@ -9,28 +9,47 @@ on:
       - '**/*.docx'
 
 jobs:
-  build:
+  convert:
     runs-on: ubuntu-latest
-
     steps:
+      # Checkout the repository
       - name: Checkout the repository
         uses: actions/checkout@v3
 
+      # Set up pandoc and LaTeX
       - name: Set up pandoc and LaTeX
         run: |
           sudo apt-get update
           sudo apt-get install -y pandoc texlive-xetex texlive-fonts-recommended texlive-generic-recommended
 
+      # Convert DOCX to PDF
       - name: Convert DOCX to PDF
         run: |
           mkdir -p pdfs
           for docx_file in $(find . -name "*.docx"); do
-            output_pdf="pdfs/$(basename "${docx_file%.docx}.pdf")"
+            # Define output PDF filename (same name as DOCX)
+            output_pdf="${docx_file%.docx}.pdf"
+            # Convert DOCX to PDF using pandoc
             pandoc "$docx_file" -o "$output_pdf"
           done
 
-      - name: Upload PDFs as artifacts
-        uses: actions/upload-artifact@v3
-        with:
-          name: converted-pdfs
-          path: pdfs/
+      # Configure Git user
+      - name: Configure git user
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+
+      # Commit PDF files to the repository
+      - name: Commit PDF files
+        run: |
+          # Stage all the PDFs
+          git add '*.pdf'
+          # Check if there are any changes (new PDFs)
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            # Commit changes (new PDFs)
+            git commit -m "Add/Update PDF files from DOCX conversion"
+            # Push changes back to the repository
+            git push
+          fi
