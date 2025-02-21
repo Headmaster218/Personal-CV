@@ -26,7 +26,8 @@ jobs:
       - name: Convert DOCX to PDF
         run: |
           mkdir -p pdfs
-          for docx_file in $(find . -name "*.docx"); do
+          # Use find with null-terminated strings to handle spaces and special characters
+          find . -name "*.docx" -print0 | while IFS= read -r -d '' docx_file; do
             # Define output PDF filename (same name as DOCX)
             output_pdf="${docx_file%.docx}.pdf"
             # Convert DOCX to PDF using pandoc
