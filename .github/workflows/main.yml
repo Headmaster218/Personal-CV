@@ -25,6 +25,8 @@ jobs:
             /usr/share/texlive
             /var/lib/texmf
           key: ${{ runner.os }}-texlive-${{ hashFiles('**/*.docx') }}
+          restore-keys: |
+            ${{ runner.os }}-texlive-
 
       # Set up pandoc and LaTeX if not cached
       - name: Set up pandoc and LaTeX
@@ -35,7 +37,7 @@ jobs:
             sudo apt-get install -y pandoc texlive-full
           fi
 
-      # Convert DOCX to PDF
+      # Convert DOCX to PDF with xelatex
       - name: Convert DOCX to PDF
         run: |
           mkdir -p pdfs
@@ -43,8 +45,8 @@ jobs:
           find . -name "*.docx" -print0 | while IFS= read -r -d '' docx_file; do
             # Define output PDF filename (same name as DOCX)
             output_pdf="${docx_file%.docx}.pdf"
-            # Convert DOCX to PDF using pandoc
-            pandoc "$docx_file" -o "$output_pdf"
+            # Convert DOCX to PDF using pandoc with xelatex
+            pandoc "$docx_file" -o "$output_pdf" --pdf-engine=xelatex
           done
 
       # Configure Git user
